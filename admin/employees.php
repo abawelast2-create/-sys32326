@@ -341,6 +341,7 @@ require_once __DIR__ . '/../includes/admin_layout.php';
         <div class="top-actions" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
             <button class="btn btn-primary" onclick="openModal('addModal')">+ إضافة موظف</button>
             <a href="<?= SITE_URL ?>/employee/" target="_blank" class="btn btn-secondary" style="text-decoration:none">🔑 بوابة الحضور</a>
+            <button class="btn" style="background:#25D366;color:#fff;border:none" onclick="openModal('waSenderModal');waInitSender()">📲 إرسال الروابط واتساب</button>
             <div class="dropdown-wrap" style="position:relative">
                 <button class="btn btn-secondary" onclick="toggleBulkMenu(this)" type="button">
                     ⚙️ إجراءات جماعية ▾
@@ -681,6 +682,224 @@ require_once __DIR__ . '/../includes/admin_layout.php';
         </form>
     </div>
 </div>
+
+<!-- =================== Modal إرسال واتساب =================== -->
+<?php
+// تجهيز بيانات الموظفين لـ JS
+$waEmployees = [];
+foreach ($employees as $emp) {
+    if (!$emp['is_active'] || empty($emp['phone'])) continue;
+    $ph = preg_replace('/[^0-9]/', '', $emp['phone']);
+    if ($ph && $ph[0] === '0') $ph = '966' . substr($ph, 1);
+    elseif ($ph && substr($ph, 0, 3) !== '966') $ph = '966' . $ph;
+    if (strlen($ph) < 9) continue;
+    $waEmployees[] = [
+        'id'     => (int)$emp['id'],
+        'name'   => $emp['name'],
+        'phone'  => $ph,
+        'pin'    => $emp['pin'] ?? '',
+        'branch' => $emp['branch_name'] ?? 'بدون فرع',
+    ];
+}
+?>
+<div class="modal-overlay" id="waSenderModal">
+    <div class="modal" style="max-width:640px;max-height:90vh;display:flex;flex-direction:column">
+        <div class="modal-title" style="display:flex;justify-content:space-between;align-items:center">
+            <span>📲 إرسال روابط الحضور عبر واتساب</span>
+            <button type="button" onclick="closeModal('waSenderModal')" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text3)">✕</button>
+        </div>
+
+        <div style="background:linear-gradient(135deg,#FFFBEB,#FEF3C7);border:1px solid #FCD34D;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:.78rem;color:#92400E;line-height:1.6">
+            <strong>💡 طريقة العمل:</strong> يفتح النظام نافذة واتساب ويب واحدة ويعرض رسالة كل موظف بالتسلسل.
+            اضغط «إرسال» في واتساب ثم اضغط «التالي ←» هنا للانتقال للموظف التالي.
+            <br><strong>⏱️ انتظر 5 ثوانٍ على الأقل بين كل إرسال</strong> لتجنّب حظر واتساب.
+        </div>
+
+        <!-- شريط التقدم -->
+        <div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--text2);margin-bottom:4px">
+                <span id="waProgressText">0 / <?= count($waEmployees) ?></span>
+                <span id="waProgressPct">0%</span>
+            </div>
+            <div style="background:var(--surface2);border-radius:6px;height:8px;overflow:hidden">
+                <div id="waProgressBar" style="height:100%;background:linear-gradient(90deg,#25D366,#128C7E);width:0%;transition:width .3s;border-radius:6px"></div>
+            </div>
+        </div>
+
+        <!-- الموظف الحالي -->
+        <div id="waCurrentEmp" style="background:var(--surface);border-radius:10px;padding:16px;margin-bottom:12px;border:1.5px solid var(--border);display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <div>
+                    <strong id="waEmpName" style="font-size:1rem"></strong>
+                    <span id="waEmpBranch" style="font-size:.75rem;color:var(--text3);margin-right:8px"></span>
+                </div>
+                <span id="waEmpPhone" style="font-family:monospace;font-size:.85rem;color:var(--text2);direction:ltr"></span>
+            </div>
+            <div style="background:var(--bg);border-radius:8px;padding:10px;font-size:.82rem;line-height:1.7;color:var(--text2);white-space:pre-wrap;direction:rtl" id="waMessagePreview"></div>
+        </div>
+
+        <!-- قائمة الانتظار -->
+        <div style="flex:1;overflow-y:auto;margin-bottom:12px;max-height:220px" id="waQueueContainer">
+            <div style="font-size:.78rem;color:var(--text3);margin-bottom:6px;font-weight:600">قائمة الانتظار:</div>
+            <div id="waQueueList" style="display:flex;flex-direction:column;gap:3px"></div>
+        </div>
+
+        <!-- أزرار التحكم -->
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:12px">
+            <button class="btn" style="background:#25D366;color:#fff;border:none;padding:8px 24px;font-size:.9rem" id="waStartBtn" onclick="waStart()">▶️ ابدأ الإرسال</button>
+            <button class="btn btn-primary" id="waNextBtn" onclick="waNext()" style="display:none;padding:8px 24px;font-size:.9rem" disabled>التالي ← <span id="waCountdown"></span></button>
+            <button class="btn btn-secondary" id="waSkipBtn" onclick="waSkip()" style="display:none;padding:8px 16px;font-size:.85rem">تخطي</button>
+            <button class="btn btn-secondary" onclick="closeModal('waSenderModal')" id="waDoneBtn" style="display:none;padding:8px 24px">✅ تم</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// =================== واتساب Sender ===================
+const waEmployees = <?= json_encode($waEmployees, JSON_UNESCAPED_UNICODE) ?>;
+const waGateway   = <?= json_encode(SITE_URL . '/employee/') ?>;
+let waIndex = 0;
+let waWindow = null;
+let waCountdownTimer = null;
+const WA_COOLDOWN = 6; // ثوانٍ الحد الأدنى بين الرسائل
+
+function waBuildMessage(emp) {
+    return "مرحباً " + emp.name + "\n\nرابط تسجيل الحضور:\n" + waGateway + "\n\nرمز الدخول (PIN): " + emp.pin + "\n\nافتح الرابط وأدخل الرمز للتسجيل.";
+}
+
+function waBuildUrl(emp) {
+    return "https://wa.me/" + emp.phone + "?text=" + encodeURIComponent(waBuildMessage(emp));
+}
+
+function waRenderQueue() {
+    const list = document.getElementById('waQueueList');
+    list.innerHTML = '';
+    waEmployees.forEach(function(emp, i) {
+        const div = document.createElement('div');
+        div.id = 'waQ_' + emp.id;
+        div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:5px 10px;border-radius:6px;font-size:.8rem;';
+        if (i < waIndex) {
+            div.style.background = '#D1FAE520';
+            div.style.color = '#16A34A';
+            div.innerHTML = '<span>✅ ' + emp.name + '</span><span style="font-size:.7rem;color:var(--text3)">' + emp.branch + '</span>';
+        } else if (i === waIndex) {
+            div.style.background = '#DBEAFE';
+            div.style.fontWeight = '700';
+            div.innerHTML = '<span>➤ ' + emp.name + '</span><span style="font-size:.7rem">' + emp.branch + '</span>';
+        } else {
+            div.style.color = 'var(--text3)';
+            div.innerHTML = '<span>○ ' + emp.name + '</span><span style="font-size:.7rem">' + emp.branch + '</span>';
+        }
+        list.appendChild(div);
+    });
+}
+
+function waUpdateProgress() {
+    const total = waEmployees.length;
+    const pct = total > 0 ? Math.round((waIndex / total) * 100) : 0;
+    document.getElementById('waProgressText').textContent = waIndex + ' / ' + total;
+    document.getElementById('waProgressPct').textContent = pct + '%';
+    document.getElementById('waProgressBar').style.width = pct + '%';
+}
+
+function waShowCurrent() {
+    if (waIndex >= waEmployees.length) {
+        document.getElementById('waCurrentEmp').style.display = 'none';
+        document.getElementById('waNextBtn').style.display = 'none';
+        document.getElementById('waSkipBtn').style.display = 'none';
+        document.getElementById('waStartBtn').style.display = 'none';
+        document.getElementById('waDoneBtn').style.display = '';
+        waUpdateProgress();
+        waRenderQueue();
+        return;
+    }
+    const emp = waEmployees[waIndex];
+    document.getElementById('waCurrentEmp').style.display = '';
+    document.getElementById('waEmpName').textContent = emp.name;
+    document.getElementById('waEmpBranch').textContent = '(' + emp.branch + ')';
+    document.getElementById('waEmpPhone').textContent = '+' + emp.phone;
+    document.getElementById('waMessagePreview').textContent = waBuildMessage(emp);
+    waUpdateProgress();
+    waRenderQueue();
+    // scroll current into view
+    const qEl = document.getElementById('waQ_' + emp.id);
+    if (qEl) qEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function waOpenLink(emp) {
+    const url = waBuildUrl(emp);
+    if (waWindow && !waWindow.closed) {
+        waWindow.location.href = url;
+        waWindow.focus();
+    } else {
+        waWindow = window.open(url, 'wa_sender');
+    }
+}
+
+function waStart() {
+    waIndex = 0;
+    document.getElementById('waStartBtn').style.display = 'none';
+    document.getElementById('waNextBtn').style.display = '';
+    document.getElementById('waSkipBtn').style.display = '';
+    waShowCurrent();
+    // فتح أول رابط
+    waOpenLink(waEmployees[0]);
+    waStartCooldown();
+}
+
+function waStartCooldown() {
+    const btn = document.getElementById('waNextBtn');
+    const span = document.getElementById('waCountdown');
+    btn.disabled = true;
+    let sec = WA_COOLDOWN;
+    span.textContent = '(' + sec + ')';
+    if (waCountdownTimer) clearInterval(waCountdownTimer);
+    waCountdownTimer = setInterval(function() {
+        sec--;
+        if (sec <= 0) {
+            clearInterval(waCountdownTimer);
+            btn.disabled = false;
+            span.textContent = '';
+        } else {
+            span.textContent = '(' + sec + ')';
+        }
+    }, 1000);
+}
+
+function waNext() {
+    waIndex++;
+    if (waIndex < waEmployees.length) {
+        waShowCurrent();
+        waOpenLink(waEmployees[waIndex]);
+        waStartCooldown();
+    } else {
+        waShowCurrent(); // will show done state
+    }
+}
+
+function waSkip() {
+    waIndex++;
+    if (waIndex < waEmployees.length) {
+        waShowCurrent();
+        waOpenLink(waEmployees[waIndex]);
+        waStartCooldown();
+    } else {
+        waShowCurrent();
+    }
+}
+
+// تهيئة القائمة عند فتح المودال
+function waInitSender() {
+    waIndex = 0;
+    document.getElementById('waStartBtn').style.display = '';
+    document.getElementById('waNextBtn').style.display = 'none';
+    document.getElementById('waSkipBtn').style.display = 'none';
+    document.getElementById('waDoneBtn').style.display = 'none';
+    waUpdateProgress();
+    waRenderQueue();
+    document.getElementById('waCurrentEmp').style.display = 'none';
+}
+</script>
 
 <script>
     function openModal(id) {
