@@ -3,51 +3,16 @@ name: Deploy to Hostinger
 on:
   push:
     branches:
-      - master   # يُشغَّل تلقائياً عند كل push على master
+      - master
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # =========================================================
-      # الطريقة الأولى: إشعار هوستنجر لسحب التحديثات (Git Integration)
-      # يعمل إذا فعّلت Git Integration في hPanel
-      # أضف HOSTINGER_DEPLOY_WEBHOOK في GitHub Secrets
-      # (تجد الرابط في hPanel > Git > الـ Webhook URL)
-      # =========================================================
-      - name: Trigger Hostinger Git Pull (Webhook)
-        if: ${{ secrets.HOSTINGER_DEPLOY_WEBHOOK != '' }}
+      - name: Notify Hostinger to pull latest code
         run: |
-          curl -s -X POST "${{ secrets.HOSTINGER_DEPLOY_WEBHOOK }}" \
-            -H "Content-Type: application/json" || true
-
-      # =========================================================
-      # الطريقة البديلة: رفع عبر FTP (تفعيلها إذا لم تعمل الطريقة الأولى)
-      # أضف FTP_HOST و FTP_USERNAME و FTP_PASSWORD في GitHub Secrets
-      # =========================================================
-      - name: Deploy via FTP (Fallback)
-        if: ${{ secrets.FTP_HOST != '' }}
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server:   ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port:     21
-          protocol: ftp
-          local-dir: ./
-          server-dir: /public_html/xml/
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/.github/**
-            **/.venv/**
-            **/.vscode/**
-            **/node_modules/**
-            **/.continue/**
-            **/attendance-system-full.zip
-            **/error_log
-            **/res.txt
+          curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "https://webhooks.hostinger.com/deploy/a9391dcb880bc52106a0c256d1956bee" \
+            -H "Content-Type: application/json" \
+            --data '{}' | grep -q "^2" && echo "✅ Deploy triggered successfully" || echo "⚠️ Deploy trigger returned non-2xx"
