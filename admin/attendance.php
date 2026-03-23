@@ -170,7 +170,7 @@ $recStmt->execute(array_merge($params, [$perPage, $offset]));
 $records = $recStmt->fetchAll();
 
 // قائمة الموظفين للفلتر
-$empList = db()->query("SELECT id, name FROM employees WHERE is_active=1 AND deleted_at IS NULL ORDER BY name")->fetchAll();
+$empList = db()->query("SELECT id, name, job_title, pin FROM employees WHERE is_active=1 AND deleted_at IS NULL ORDER BY name")->fetchAll();
 
 // قائمة الفروع للفلتر
 $branchList = db()->query("SELECT id, name FROM branches WHERE is_active=1 ORDER BY name")->fetchAll();
@@ -367,22 +367,24 @@ require_once __DIR__ . '/../includes/admin_layout.php';
 </div>
 
 <!-- modal إضافة / تعديل الحضور -->
-<div id="attendanceModal" class="modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center">
-    <div style="background:white;border-radius:8px;padding:30px;max-width:500px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.2)">
+<div id="attendanceModal" class="modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;background-attachment:fixed;overflow-y:auto">
+    <div style="display:flex;flex-direction:column;gap:20px;align-items:center;justify-content:center;min-height:100vh;padding:20px">
+        <div style="background:white;border-radius:8px;padding:30px;max-width:500px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
             <h2 id="modalTitle" style="margin:0">إضافة حضور جديد</h2>
             <button onclick="closeAttendanceModal()" style="background:none;border:none;font-size:24px;cursor:pointer">×</button>
         </div>
         
-        <form id="attendanceForm" style="display:flex;flex-direction:column;gap:15px">
+        <form id="attendanceForm" style="display:flex;flex-direction:column;gap:15px;width:100%">
             <input type="hidden" id="recordId" value="0">
+            <input type="hidden" id="csrfToken" value="<?= generateCsrfToken() ?>">
             
-            <div>
+            <div style="display:flex;flex-direction:column;gap:5px">
                 <label for="empSelect" style="display:block;margin-bottom:5px;font-weight:bold;color:#333">الموظف <span style="color:red">*</span></label>
                 <select id="empSelect" required style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;font-size:14px">
                     <option value="">-- اختر موظف --</option>
                     <?php foreach($empList as $emp): ?>
-                    <option value="<?= $emp->id ?>"><?= htmlspecialchars($emp->full_name) ?> (<?= $emp->emp_code ?>)</option>
+                    <option value="<?= $emp->id ?>"><?= htmlspecialchars($emp['name']) ?> — <?= htmlspecialchars($emp['job_title']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -608,7 +610,7 @@ function openAddAttendanceModal() {
     document.getElementById('modalTitle').textContent = 'إضافة حضور جديد';
     document.getElementById('formError').style.display = 'none';
     document.getElementById('empSelect').disabled = false;
-    document.getElementById('attendanceModal').style.display = 'flex';
+    document.getElementById('attendanceModal').style.display = 'block';
 }
 
 function closeAttendanceModal() {
@@ -632,7 +634,7 @@ async function editAttendanceRecord(recordId) {
         document.getElementById('modalTitle').textContent = 'تعديل الحضور';
         document.getElementById('empSelect').disabled = true; // تعطيل تغيير الموظف عند التعديل
         document.getElementById('formError').style.display = 'none';
-        document.getElementById('attendanceModal').style.display = 'flex';
+        document.getElementById('attendanceModal').style.display = 'block';
     } catch (e) {
         alert('خطأ في تحميل السجل: ' + e.message);
     }
@@ -664,6 +666,7 @@ document.getElementById('attendanceForm').addEventListener('submit', async (e) =
         
         const formData = new FormData();
         formData.append('action', 'save_attendance');
+        formData.append('csrf_token', document.getElementById('csrfToken').value);
         formData.append('id', recordId);
         formData.append('employee_id', empId);
         formData.append('type', type);

@@ -220,6 +220,10 @@ tbody tr:last-child td { border-bottom:none; }
 .btn-green:hover   { background:var(--green); color:#fff; }
 .btn-secondary { background:var(--surface3); color:var(--text2); border:1px solid var(--border); }
 .btn-secondary:hover { background:var(--border); color:var(--text); }
+.btn-info { background:#DFF8FF; color:#0A7E9E; border:1px solid #A5D8E8; }
+.btn-info:hover { background:#A5D8E8; color:#fff; }
+.btn-success { background:#D1FAE5; color:#065F46; border:1px solid #6EE7B7; }
+.btn-success:hover { background:#10B981; color:#fff; }
 .btn-sm { padding:6px 12px; font-size:.78rem; border-radius:8px; }
 .btn-wa { background:#25D366; color:#fff; box-shadow:0 4px 12px rgba(37,211,102,.25); }
 .btn-wa:hover { background:#1EBE57; }
