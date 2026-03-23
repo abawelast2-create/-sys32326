@@ -1,6 +1,6 @@
 # نظام الحضور والانصراف الإلكتروني
 
-**الإصدار:** 3.2.0 | **آخر تحديث:** مارس 2026
+**الإصدار:** 3.5.1 | **آخر تحديث:** مارس 2026
 
 نظام ويب متكامل لتسجيل حضور وانصراف الموظفين عبر روابط فريدة (WhatsApp) مع التحقق من الموقع الجغرافي، بصمة الجهاز، والتحديث بالوقت الفعلي.
 
@@ -37,6 +37,16 @@
 | 🆕 تجديد جماعي للروابط | زر واحد لتجديد جميع روابط الموظفين دفعة واحدة |
 | 🆕 إرسال جماعي واتساب | إرسال جميع الروابط برسالة واحدة عبر واتساب |
 | 🆕 GPS Banner | شريط تنبيه شفاف غير معطل للصفحة |
+| 🆕 نظام الورديات المتعدد | حتى 3 ورديات لكل فرع مع كشف تلقائي للوردية النشطة |
+| 🆕 واتساب لكل فرع | زر إرسال جماعي لموظفي كل فرع من صفحة الفروع |
+| 🆕 باركود QR للبوابة | توليد QR Code لبوابة الموظف مع شعار التطبيق في المنتصف |
+| 🆕 نظام PIN | رقم سري فريد لكل موظف مع توليد تلقائي/يدوي |
+| 🆕 فترات الاستراحة | دعم تسجيل بعد الاستراحة |
+| 🆕 تقارير أخطاء سرية | نظام بلاغات مخفي للموظفين |
+| 🆕 ملف شخصي للموظف | بطاقة ملف شخصي + صور + انتهاء الوثائق |
+| 🆕 وثائق الموظف | مجموعات وثائق مع صلاحية + رفع صور/PDF |
+| 🆕 تقارير بيانية | رسوم بيانية وإحصائيات متقدمة |
+| 🆕 تفضيلات المستخدم | الوضع الداكن + اللغة + تفضيلات الإشعارات |
 
 ## التقنيات المستخدمة
 
@@ -68,41 +78,87 @@ attendance-system/
 │   ├── login.php                 ← تسجيل دخول المدير (Brute Force Protection)
 │   ├── logout.php                ← تسجيل خروج
 │   ├── dashboard.php             ← لوحة التحكم الرئيسية (تحديث فوري)
-│   ├── branches.php              ← إدارة الفروع (CRUD + مواعيد + موقع)
-│   ├── employees.php             ← إدارة الموظفين (CRUD + بصمة الجهاز)
+│   ├── branches.php              ← إدارة الفروع (CRUD + ورديات + واتساب)
+│   ├── branch-edit.php           ← تعديل فرع (ورديات + GPS + Leaflet)
+│   ├── employees.php             ← إدارة الموظفين (CRUD + PIN + QR)
+│   ├── employee-profile.php      ← ملف الموظف الشخصي (وثائق + صور)
+│   ├── documents-expiry.php      ← لوحة انتهاء الوثائق
 │   ├── attendance.php            ← تقارير الحضور (فلاتر + تصدير + تحديث فوري)
-│   ├── settings.php              ← إعدادات النظام (5 تبويبات)
+│   ├── leaves.php                ← إدارة الإجازات (موافقة/رفض)
+│   ├── late-report.php           ← تقرير التأخير
+│   ├── report-daily.php          ← التقرير اليومي
+│   ├── report-charts.php         ← التقارير البيانية
+│   ├── tampering.php             ← حالات التلاعب
+│   ├── secret-reports.php        ← البلاغات السرية
+│   ├── settings.php              ← إعدادات النظام
 │   └── index.php                 ← إعادة توجيه
 │
 ├── employee/                     ← واجهة الموظف
-│   └── attendance.php            ← صفحة تسجيل الحضور (تستقبل ?token=)
+│   ├── attendance.php            ← صفحة تسجيل الحضور (تستقبل ?token=)
+│   ├── index.php                 ← صفحة بداية الموظف
+│   └── my-documents.php          ← وثائقي الشخصية
 │
-├── api/                          ← نقاط API
+├── api/                          ← نقاط API (22 نقطة)
 │   ├── check-in.php              ← تسجيل الحضور (POST)
 │   ├── check-out.php             ← تسجيل الانصراف (POST)
 │   ├── get-employee.php          ← جلب بيانات موظف (GET)
 │   ├── ot.php                    ← بدء الدوام الإضافي (POST)
 │   ├── overtime-end.php          ← إنهاء الدوام الإضافي (POST)
 │   ├── overtime.php              ← الدوام الإضافي - نسخة احتياطية
+│   ├── auth-pin.php              ← مصادقة عبر PIN (POST)
+│   ├── auth-device.php           ← مصادقة عبر بصمة الجهاز (POST)
+│   ├── verify-device.php         ← التحقق من بصمة الجهاز (POST)
 │   ├── whatsapp.php              ← روابط واتساب (GET)
 │   ├── send-all-links.php        ← إرسال جميع الروابط عبر واتساب (POST)
+│   ├── leave-add.php             ← إضافة إجازة (POST)
+│   ├── error-report.php          ← تقرير أخطاء سري (POST)
+│   ├── submit-report.php         ← بلاغات سرية (POST)
+│   ├── export.php                ← تصدير التقارير (GET)
+│   ├── upload-profile.php        ← رفع صور/وثائق (POST)
+│   ├── profile-action.php        ← إدارة مجموعات الوثائق (POST)
+│   ├── serve-file.php            ← عرض ملفات البروفايل (GET)
+│   ├── preferences.php           ← حفظ تفضيلات المستخدم (POST)
+│   ├── regenerate-tokens.php     ← إعادة توليد الروابط (POST)
 │   ├── realtime-dashboard.php    ← بيانات لوحة التحكم المباشرة (GET)
 │   └── realtime-attendance.php   ← بيانات سجلات الحضور المباشرة (GET)
 │
 ├── includes/                     ← ملفات النظام الأساسية
-│   ├── config.php                ← إعدادات قاعدة البيانات والموقع
+│   ├── config.php                ← إعدادات قاعدة البيانات والموقع (Auto-detect URL + .env)
 │   ├── db.php                    ← اتصال PDO
-│   ├── functions.php             ← الدوال المساعدة (25+ دالة)
+│   ├── functions.php             ← الدوال المساعدة (30+ دالة)
 │   ├── auth.php                  ← مصادقة المديرين
-│   └── admin_layout.php          ← هيكل صفحات الإدارة (CSS + SVG Icons)
+│   ├── rate_limiter.php          ← حماية Rate Limiting
+│   ├── admin_layout.php          ← هيكل صفحات الإدارة (CSS + SVG Icons)
+│   └── admin_footer.php          ← تذييل صفحات الإدارة
 │
 ├── assets/
 │   ├── css/
-│   │   ├── style.css             ← أنماط إضافية
-│   │   └── admin.css             ← أنماط لوحة التحكم (مستخرجة)
-│   ├── js/attendance.js          ← JavaScript واجهة الموظف
+│   │   ├── style.css             ← أنماط عامة
+│   │   ├── admin.css             ← أنماط لوحة التحكم
+│   │   ├── dark-mode.css         ← الوضع الداكن
+│   │   └── radar.css             ← أنماط صفحة الموظف
+│   ├── js/
+│   │   ├── attendance.js         ← JavaScript مشترك
+│   │   ├── radar.js              ← رادار GPS + بصمة الجهاز
+│   │   ├── theme.js              ← الوضع الداكن/الفاتح
+│   │   └── qrcode.min.js         ← مكتبة QR Code
 │   └── images/
 │       └── loogo.png             ← شعار النظام
+│
+├── cron/
+│   └── auto-checkout.php         ← انصراف تلقائي (Cron Job)
+│
+├── storage/                      ← ملفات مرفوعة (صور/وثائق)
+│
+├── src/                          ← كود MVC (v4.0)
+│   ├── Core/                     ← Application, Router, Database, Container
+│   ├── Models/                   ← Admin, Employee, Branch, Attendance, Leave
+│   ├── Services/                 ← Attendance, Auth, Cache, Export, Geofence
+│   └── Middleware/               ← CSRF, RateLimiter, SessionTimeout
+│
+├── tests/                        ← اختبارات وحدة
+│   ├── run_tests.php             ← تشغيل جميع الاختبارات
+│   └── Unit/                     ← CacheService, Geofence, CSRF, RateLimiter, Lang
 │
 └── error/
     └── 404.php                   ← صفحة الخطأ 404
@@ -110,7 +166,36 @@ attendance-system/
 
 ---
 
-## ما الجديد في الإصدار 3.0.0
+## ما الجديد في الإصدار 3.5.0
+
+### نظام الورديات المتعدد
+- جدول `branch_shifts` يدعم حتى **3 ورديات لكل فرع**
+- كشف تلقائي للوردية النشطة بناءً على الوقت الحالي (`detectActiveShift()`)
+- نافذة التسجيل: بداية الوردية − 60 دقيقة حتى نهاية الوردية
+- إلغاء نوافذ الوقت القديمة (check_in_start_time/check_out_start_time...)
+- إدارة الورديات من صفحة تعديل الفرع
+
+### واتساب لكل فرع
+- زر "📱 واتساب (N)" في كل بطاقة فرع بصفحة الفروع
+- يفتح نوافذ واتساب متعددة (كل 800ms) لكل موظف بالفرع
+- الرسالة تتضمن: اسم الموظف + رابط البوابة + رقم PIN
+
+### باركود QR لبوابة الموظف
+- زر "باركود البوابة" بجانب زر بوابة الحضور في صفحة الموظفين
+- يولّد QR Code بدقة عالية (Canvas 3x) مع وحدات مستديرة الزوايا
+- شعار التطبيق في المنتصف داخل دائرة بيضاء بإطار برتقالي
+- أزرار تحميل PNG وطباعة
+
+### نظام PIN
+- رقم سري فريد (4 أرقام) لكل موظف
+- توليد تلقائي أو يدوي
+- توليد جماعي من آخر 4 أرقام من رقم الهاتف
+
+---
+
+## الإصدارات السابقة
+
+### الإصدار 3.0.0
 
 ### واجهة الموظف — تحسينات UI/UX
 - **شعار مخصص (loogo.png)** يُعرض في كل مكان: الهيدر، الفافيكون، مركز الخريطة
@@ -323,17 +408,20 @@ https://yourdomain.com/attendance-system/cron/auto-checkout.php?secret=auto_chec
 | latitude | DECIMAL(10,8) | خط العرض |
 | longitude | DECIMAL(11,8) | خط الطول |
 | geofence_radius | INT | نصف قطر السياج الجغرافي بالمتر |
-| work_start_time | TIME | بداية الدوام |
-| work_end_time | TIME | نهاية الدوام |
-| check_in_start_time | TIME | بداية تسجيل الحضور |
-| check_in_end_time | TIME | نهاية تسجيل الحضور |
-| check_out_start_time | TIME | بداية تسجيل الانصراف |
-| check_out_end_time | TIME | نهاية تسجيل الانصراف |
-| checkout_show_before | INT | إظهار زر الانصراف قبل (دقيقة) |
 | allow_overtime | TINYINT(1) | السماح بالدوام الإضافي |
 | overtime_start_after | INT | بدء الإضافي بعد (دقيقة) |
 | overtime_min_duration | INT | الحد الأدنى لاحتساب الإضافي |
 | is_active | TINYINT(1) | الحالة |
+
+#### جدول `branch_shifts` - ورديات الفروع
+| العمود | النوع | الوصف |
+|--------|-------|-------|
+| id | INT AUTO_INCREMENT | المعرف |
+| branch_id | INT FK | معرف الفرع |
+| shift_number | TINYINT | رقم الوردية (1-3) |
+| shift_start | TIME | بداية الوردية |
+| shift_end | TIME | نهاية الوردية |
+| is_active | TINYINT(1) | مفعّلة |
 
 #### جدول `admins` - المديرون
 | العمود | النوع | الوصف |
@@ -357,13 +445,8 @@ https://yourdomain.com/attendance-system/cron/auto-checkout.php?secret=auto_chec
 | work_latitude | خط عرض موقع العمل | 24.572307 |
 | work_longitude | خط طول موقع العمل | 46.602552 |
 | geofence_radius | نصف قطر السياج (متر) | 25 |
-| work_start_time | بداية الدوام | 08:00 |
-| work_end_time | نهاية الدوام | 16:00 |
-| check_in_start_time | بداية تسجيل الحضور | 07:00 |
-| check_in_end_time | نهاية تسجيل الحضور | 10:00 |
-| check_out_start_time | بداية تسجيل الانصراف | 15:00 |
-| check_out_end_time | نهاية تسجيل الانصراف | 20:00 |
-| checkout_show_before | إظهار الانصراف قبل (دقيقة) | 30 |
+| work_start_time | بداية الدوام الافتراضية | 12:00 |
+| work_end_time | نهاية الدوام الافتراضية | 16:00 |
 | allow_overtime | السماح بالإضافي | 1 |
 | overtime_start_after | بدء الإضافي بعد (دقيقة) | 60 |
 | overtime_min_duration | الحد الأدنى للإضافي | 30 |
@@ -508,7 +591,7 @@ GET /api/whatsapp.php
 ```
 **شروط التسجيل:**
 - الموظف نشط (`is_active = 1`)
-- ضمن وقت تسجيل الحضور (`check_in_start_time` → `check_in_end_time`)
+- ضمن نافذة الوردية (بداية الوردية − 60 دقيقة حتى نهاية الوردية)
 - ضمن نطاق السياج الجغرافي
 - بصمة الجهاز مطابقة (أو أول تسجيل)
 - لم يُسجل خلال آخر 5 دقائق
@@ -517,7 +600,7 @@ GET /api/whatsapp.php
 **الطلب:** نفس بنية check-in  
 **شروط إضافية:**
 - وجود تسجيل حضور اليوم
-- ضمن وقت تسجيل الانصراف (`check_out_start_time` → `check_out_end_time`)
+- ضمن نافذة الوردية النشطة
 
 ### POST `/api/ot.php` — الدوام الإضافي
 **الطلب:** نفس بنية check-in  
