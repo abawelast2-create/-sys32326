@@ -274,6 +274,64 @@ function verifyCsrfToken(string $token): bool {
 }
 
 /**
+ * حفظ أو تعديل سجل الحضور/الانصراف لموظف في يوم محدد
+ * يُستخدم من واجهة الأدمن لإضافة حضور يدوي أو تعديل وقت
+ *
+ * @param int    $employeeId  معرف الموظف
+ * @param string $date        التاريخ بصيغة Y-m-d
+ * @param string|null $checkIn  وقت الحضور بصيغة H:i أو null
+ * @param string|null $checkOut وقت الانصراف بصيغة H:i أو null
+ */
+function saveAttendanceRecord(int $employeeId, string $date, ?string $checkIn, ?string $checkOut): void {
+    $pdo = db();
+
+    if ($checkIn !== null) {
+        $ts = $date . ' ' . $checkIn . ':00';
+        // حساب دقائق التأخير
+        $lateMin = 0;
+        $stmt = $pdo->prepare("SELECT work_start_time FROM branches b JOIN employees e ON e.branch_id = b.id WHERE e.id = ? LIMIT 1");
+        $stmt->execute([$employeeId]);
+        $branch = $stmt->fetch();
+        if ($branch && $branch['work_start_time']) {
+            $workStart = strtotime($date . ' ' . $branch['work_start_time']);
+            $inTime    = strtotime($ts);
+            if ($inTime > $workStart) {
+                $lateMin = (int)(($inTime - $workStart) / 60);
+            }
+        }
+
+        // تحقق إذا يوجد سجل حضور بالفعل
+        $existing = $pdo->prepare("SELECT id FROM attendances WHERE employee_id=? AND attendance_date=? AND type='in' ORDER BY timestamp ASC LIMIT 1");
+        $existing->execute([$employeeId, $date]);
+        $row = $existing->fetch();
+        if ($row) {
+            // تحديث الوقت
+            $upd = $pdo->prepare("UPDATE attendances SET timestamp=?, late_minutes=? WHERE id=?");
+            $upd->execute([$ts, $lateMin, $row['id']]);
+        } else {
+            // إدراج جديد
+            $ins = $pdo->prepare("INSERT INTO attendances (employee_id, type, timestamp, attendance_date, late_minutes) VALUES (?,?,?,?,?)");
+            $ins->execute([$employeeId, 'in', $ts, $date, $lateMin]);
+        }
+    }
+
+    if ($checkOut !== null) {
+        $ts = $date . ' ' . $checkOut . ':00';
+
+        $existing = $pdo->prepare("SELECT id FROM attendances WHERE employee_id=? AND attendance_date=? AND type='out' ORDER BY timestamp DESC LIMIT 1");
+        $existing->execute([$employeeId, $date]);
+        $row = $existing->fetch();
+        if ($row) {
+            $upd = $pdo->prepare("UPDATE attendances SET timestamp=? WHERE id=?");
+            $upd->execute([$ts, $row['id']]);
+        } else {
+            $ins = $pdo->prepare("INSERT INTO attendances (employee_id, type, timestamp, attendance_date) VALUES (?,?,?,?)");
+            $ins->execute([$employeeId, 'out', $ts, $date]);
+        }
+    }
+}
+
+/**
  * إرجاع رسالة JSON وإنهاء التنفيذ
  */
 function jsonResponse(array $data, int $code = 200): void {

@@ -318,6 +318,91 @@ $dateAr    = $dayOfWeek . '، ' . $dateObj->format('j') . ' / ' . $dateObj->form
     padding: 7px 12px;
     text-align: right;
   }
+
+  /* ===== زر إضافة/تعديل الحضور ===== */
+  .btn-add-att {
+    background: #10b981; color: #fff; border: none; border-radius: 8px;
+    padding: 8px 18px; cursor: pointer; font-family: 'Tajawal', sans-serif;
+    font-size: .9rem; font-weight: 700;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-add-att:hover { background: #059669; }
+
+  /* ===== المودال ===== */
+  .att-modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.55);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+  }
+  .att-modal-overlay.open { display: flex; }
+  .att-modal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px 32px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    direction: rtl;
+  }
+  .att-modal h3 {
+    font-size: 1.1rem; font-weight: 800; color: #1e3a5f;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .att-modal .form-group {
+    margin-bottom: 14px;
+  }
+  .att-modal label {
+    display: block; font-size: .85rem; font-weight: 700;
+    color: #374151; margin-bottom: 5px;
+  }
+  .att-modal select,
+  .att-modal input[type=time],
+  .att-modal input[type=date] {
+    width: 100%; padding: 9px 12px;
+    border: 1px solid #d1d5db; border-radius: 8px;
+    font-family: 'Tajawal', sans-serif; font-size: .9rem;
+    outline: none;
+  }
+  .att-modal select:focus,
+  .att-modal input:focus { border-color: #3b82f6; }
+  .att-modal .modal-actions {
+    display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;
+  }
+  .att-modal .btn-save {
+    background: #10b981; color: #fff; border: none;
+    border-radius: 8px; padding: 10px 26px;
+    font-family: 'Tajawal', sans-serif; font-size: .95rem; font-weight: 700;
+    cursor: pointer;
+  }
+  .att-modal .btn-save:hover { background: #059669; }
+  .att-modal .btn-cancel {
+    background: #f3f4f6; color: #374151; border: none;
+    border-radius: 8px; padding: 10px 20px;
+    font-family: 'Tajawal', sans-serif; font-size: .95rem;
+    cursor: pointer;
+  }
+  .att-modal .btn-cancel:hover { background: #e5e7eb; }
+  .att-modal .msg-box {
+    padding: 10px 14px; border-radius: 8px; font-size: .85rem;
+    margin-top: 12px; display: none;
+  }
+  .att-modal .msg-box.success { background: #d1fae5; color: #065f46; display: block; }
+  .att-modal .msg-box.error   { background: #fee2e2; color: #991b1b; display: block; }
+
+  /* زر تعديل في كل صف */
+  .btn-edit-row {
+    background: #dbeafe; color: #1d4ed8; border: none;
+    border-radius: 6px; padding: 3px 10px;
+    font-family: 'Tajawal', sans-serif; font-size: .78rem;
+    cursor: pointer; font-weight: 700;
+  }
+  .btn-edit-row:hover { background: #bfdbfe; }
+  @media print { .btn-edit-row, .btn-add-att { display: none !important; } }
 </style>
 </head>
 <body>
@@ -339,6 +424,7 @@ $dateAr    = $dayOfWeek . '، ' . $dateObj->format('j') . ' / ' . $dateObj->form
       <button type="submit" class="btn-print" style="background:#475569">عرض</button>
     </form>
     <button class="btn-print" onclick="window.print()">🖨️ طباعة / PDF</button>
+    <button class="btn-add-att" onclick="openAttModal()">＋ إضافة حضور</button>
     <a href="attendance.php" class="btn-back">← العودة</a>
   </div>
 </div>
@@ -399,6 +485,7 @@ $dateAr    = $dayOfWeek . '، ' . $dateObj->format('j') . ' / ' . $dateObj->form
         <th>مدة العمل</th>
         <th>التأخير</th>
         <th>الحالة</th>
+        <th class="no-print">تعديل</th>
       </tr>
     </thead>
     <tbody>
@@ -478,6 +565,9 @@ $dateAr    = $dayOfWeek . '، ' . $dateObj->format('j') . ' / ' . $dateObj->form
           <span class="badge badge-present">حاضر</span>
         <?php endif; ?>
       </td>
+      <td class="no-print">
+        <button class="btn-edit-row" onclick="openAttModal(<?= $r['emp_id'] ?>, '<?= htmlspecialchars($r['emp_name'], ENT_QUOTES) ?>', '<?= $r['check_in_ts'] ? date('H:i', strtotime($r['check_in_ts'])) : '' ?>', '<?= $r['check_out_ts'] ? date('H:i', strtotime($r['check_out_ts'])) : '' ?>')">تعديل</button>
+      </td>
     </tr>
     <?php endforeach; ?>
     <?php if (empty($rows)): ?>
@@ -507,7 +597,115 @@ $dateAr    = $dayOfWeek . '، ' . $dateObj->format('j') . ' / ' . $dateObj->form
 
 </div><!-- /.page -->
 
+<!-- مودال إضافة/تعديل الحضور -->
+<div class="att-modal-overlay" id="attModalOverlay">
+  <div class="att-modal">
+    <h3 id="attModalTitle">إضافة / تعديل الحضور</h3>
+    <div class="form-group">
+      <label>الموظف</label>
+      <select id="attEmpId">
+        <option value="">-- اختر موظفاً --</option>
+        <?php foreach ($rows as $r): ?>
+          <option value="<?= $r['emp_id'] ?>"><?= htmlspecialchars($r['emp_name']) ?> (<?= htmlspecialchars($r['branch_name'] ?? '') ?>)</option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>التاريخ</label>
+      <input type="date" id="attDate" value="<?= htmlspecialchars($date) ?>" max="<?= date('Y-m-d') ?>">
+    </div>
+    <div class="form-group">
+      <label>وقت الحضور <span style="color:#9ca3af;font-weight:400">(اتركه فارغاً لعدم التغيير)</span></label>
+      <input type="time" id="attCheckIn">
+    </div>
+    <div class="form-group">
+      <label>وقت الانصراف <span style="color:#9ca3af;font-weight:400">(اتركه فارغاً لعدم التغيير)</span></label>
+      <input type="time" id="attCheckOut">
+    </div>
+    <div id="attMsg" class="msg-box"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAttModal()">إلغاء</button>
+      <button class="btn-save" id="attSaveBtn" onclick="saveAttendance()">حفظ</button>
+    </div>
+  </div>
+</div>
+
 <script>
+const CSRF_TOKEN = '<?= generateCsrfToken() ?>';
+const REPORT_DATE = '<?= htmlspecialchars($date) ?>';
+
+function openAttModal(empId = '', empName = '', checkIn = '', checkOut = '') {
+    document.getElementById('attModalOverlay').classList.add('open');
+    document.getElementById('attDate').value = REPORT_DATE;
+    if (empId) {
+        document.getElementById('attEmpId').value = empId;
+        document.getElementById('attModalTitle').textContent = 'تعديل حضور: ' + empName;
+    } else {
+        document.getElementById('attEmpId').value = '';
+        document.getElementById('attModalTitle').textContent = 'إضافة حضور يدوي';
+    }
+    document.getElementById('attCheckIn').value  = checkIn;
+    document.getElementById('attCheckOut').value = checkOut;
+    document.getElementById('attMsg').className = 'msg-box';
+    document.getElementById('attMsg').textContent = '';
+}
+
+function closeAttModal() {
+    document.getElementById('attModalOverlay').classList.remove('open');
+}
+
+// إغلاق عند الضغط خارج المودال
+document.getElementById('attModalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeAttModal();
+});
+
+function saveAttendance() {
+    const empId    = document.getElementById('attEmpId').value;
+    const date     = document.getElementById('attDate').value;
+    const checkIn  = document.getElementById('attCheckIn').value;
+    const checkOut = document.getElementById('attCheckOut').value;
+    const msgBox   = document.getElementById('attMsg');
+    const saveBtn  = document.getElementById('attSaveBtn');
+
+    if (!empId)  { showMsg('يجب اختيار الموظف', 'error'); return; }
+    if (!date)   { showMsg('يجب تحديد التاريخ', 'error'); return; }
+    if (!checkIn && !checkOut) { showMsg('يجب إدخال وقت الحضور أو الانصراف', 'error'); return; }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'جاري الحفظ...';
+
+    const fd = new FormData();
+    fd.append('csrf_token',   CSRF_TOKEN);
+    fd.append('employee_id',  empId);
+    fd.append('date',         date);
+    if (checkIn)  fd.append('check_in',  checkIn);
+    if (checkOut) fd.append('check_out', checkOut);
+
+    fetch('../api/attendance-handler.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showMsg('✅ تم الحفظ بنجاح! سيتم تحديث الصفحة...', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showMsg('❌ ' + (data.message || 'حدث خطأ'), 'error');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'حفظ';
+            }
+        })
+        .catch(() => {
+            showMsg('❌ خطأ في الاتصال بالخادم', 'error');
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'حفظ';
+        });
+}
+
+function showMsg(text, type) {
+    const el = document.getElementById('attMsg');
+    el.textContent = text;
+    el.className = 'msg-box ' + type;
+}
+
 // طباعة تلقائية إذا طُلب ذلك من URL
 if (new URLSearchParams(location.search).get('autoprint') === '1') {
     window.addEventListener('load', () => setTimeout(() => window.print(), 400));
