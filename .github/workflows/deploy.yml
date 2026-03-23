@@ -13,7 +13,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy via FTP to Hostinger
+      # =========================================================
+      # الطريقة الأولى: إشعار هوستنجر لسحب التحديثات (Git Integration)
+      # يعمل إذا فعّلت Git Integration في hPanel
+      # أضف HOSTINGER_DEPLOY_WEBHOOK في GitHub Secrets
+      # (تجد الرابط في hPanel > Git > الـ Webhook URL)
+      # =========================================================
+      - name: Trigger Hostinger Git Pull (Webhook)
+        if: ${{ secrets.HOSTINGER_DEPLOY_WEBHOOK != '' }}
+        run: |
+          curl -s -X POST "${{ secrets.HOSTINGER_DEPLOY_WEBHOOK }}" \
+            -H "Content-Type: application/json" || true
+
+      # =========================================================
+      # الطريقة البديلة: رفع عبر FTP (تفعيلها إذا لم تعمل الطريقة الأولى)
+      # أضف FTP_HOST و FTP_USERNAME و FTP_PASSWORD في GitHub Secrets
+      # =========================================================
+      - name: Deploy via FTP (Fallback)
+        if: ${{ secrets.FTP_HOST != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server:   ${{ secrets.FTP_HOST }}
@@ -21,11 +38,8 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           port:     21
           protocol: ftp
-          # المجلد المحلي للرفع (. = كل الملفات)
           local-dir: ./
-          # المجلد على السيرفر (عدّله حسب مسار موقعك)
-          server-dir: /public_html/
-          # ملفات يُستثنى رفعها للسيرفر
+          server-dir: /public_html/xml/
           exclude: |
             **/.git*
             **/.git*/**
