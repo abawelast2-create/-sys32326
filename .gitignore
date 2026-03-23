@@ -1,0 +1,26 @@
+# بيانات حساسة - لا ترفعها أبداً
+.env
+.env.*
+!.env.example
+
+# ملفات النظام
+error_log
+*.log
+res.txt
+
+# بيئة Python
+.venv/
+__pycache__/
+*.pyc
+
+# ملفات VS Code
+.vscode/
+.continue/
+
+# ملفات مضغوطة
+*.zip
+*.tar.gz
+
+# ملفات حساسة أخرى
+install.lock
+config/local.php
