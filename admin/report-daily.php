@@ -402,7 +402,7 @@ $dateAr    = $dayOfWeek . '، ' . $dateObj->format('j') . ' / ' . $dateObj->form
     cursor: pointer; font-weight: 700;
   }
   .btn-edit-row:hover { background: #bfdbfe; }
-  @media print { .btn-edit-row, .btn-add-att { display: none !important; } }
+  @media print { .btn-edit-row, .btn-add-att, .no-print { display: none !important; } }
 </style>
 </head>
 <body>
@@ -504,7 +504,7 @@ $dateAr    = $dayOfWeek . '، ' . $dateObj->format('j') . ' / ' . $dateObj->form
             $lastBranch = $r['branch_name'];
     ?>
     <tr class="branch-header">
-      <td colspan="9">فرع: <?= htmlspecialchars($r['branch_name'] ?? 'بدون فرع') ?></td>
+      <td colspan="10">فرع: <?= htmlspecialchars($r['branch_name'] ?? 'بدون فرع') ?></td>
     </tr>
     <?php } ?>
 
@@ -571,7 +571,7 @@ $dateAr    = $dayOfWeek . '، ' . $dateObj->format('j') . ' / ' . $dateObj->form
     </tr>
     <?php endforeach; ?>
     <?php if (empty($rows)): ?>
-    <tr><td colspan="9" style="text-align:center;padding:32px;color:#9ca3af">لا يوجد موظفون</td></tr>
+    <tr><td colspan="10" style="text-align:center;padding:32px;color:#9ca3af">لا يوجد موظفون</td></tr>
     <?php endif; ?>
     </tbody>
   </table>

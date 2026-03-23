@@ -287,13 +287,15 @@ function saveAttendanceRecord(int $employeeId, string $date, ?string $checkIn, ?
 
     if ($checkIn !== null) {
         $ts = $date . ' ' . $checkIn . ':00';
-        // حساب دقائق التأخير
+
+        // حساب دقائق التأخير باستخدام getBranchSchedule الصحيحة
         $lateMin = 0;
-        $stmt = $pdo->prepare("SELECT work_start_time FROM branches b JOIN employees e ON e.branch_id = b.id WHERE e.id = ? LIMIT 1");
-        $stmt->execute([$employeeId]);
-        $branch = $stmt->fetch();
-        if ($branch && $branch['work_start_time']) {
-            $workStart = strtotime($date . ' ' . $branch['work_start_time']);
+        $empStmt = $pdo->prepare("SELECT branch_id FROM employees WHERE id = ? LIMIT 1");
+        $empStmt->execute([$employeeId]);
+        $emp = $empStmt->fetch();
+        $schedule = getBranchSchedule($emp['branch_id'] ?? null);
+        if (!empty($schedule['work_start_time'])) {
+            $workStart = strtotime($date . ' ' . $schedule['work_start_time']);
             $inTime    = strtotime($ts);
             if ($inTime > $workStart) {
                 $lateMin = (int)(($inTime - $workStart) / 60);
@@ -309,8 +311,8 @@ function saveAttendanceRecord(int $employeeId, string $date, ?string $checkIn, ?
             $upd = $pdo->prepare("UPDATE attendances SET timestamp=?, late_minutes=? WHERE id=?");
             $upd->execute([$ts, $lateMin, $row['id']]);
         } else {
-            // إدراج جديد
-            $ins = $pdo->prepare("INSERT INTO attendances (employee_id, type, timestamp, attendance_date, late_minutes) VALUES (?,?,?,?,?)");
+            // إدراج جديد - إضافة يدوية من المشرف (lat/lng = 0)
+            $ins = $pdo->prepare("INSERT INTO attendances (employee_id, type, timestamp, attendance_date, late_minutes, latitude, longitude) VALUES (?,?,?,?,?,0,0)");
             $ins->execute([$employeeId, 'in', $ts, $date, $lateMin]);
         }
     }
@@ -325,7 +327,8 @@ function saveAttendanceRecord(int $employeeId, string $date, ?string $checkIn, ?
             $upd = $pdo->prepare("UPDATE attendances SET timestamp=? WHERE id=?");
             $upd->execute([$ts, $row['id']]);
         } else {
-            $ins = $pdo->prepare("INSERT INTO attendances (employee_id, type, timestamp, attendance_date) VALUES (?,?,?,?)");
+            // إدراج جديد - إضافة يدوية من المشرف (lat/lng = 0)
+            $ins = $pdo->prepare("INSERT INTO attendances (employee_id, type, timestamp, attendance_date, latitude, longitude) VALUES (?,?,?,?,0,0)");
             $ins->execute([$employeeId, 'out', $ts, $date]);
         }
     }
